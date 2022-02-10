@@ -1,0 +1,341 @@
+fallback 
+import json
+
+
+def elicit_slot(session_attributes, intent_name,slots,slot_to_elicit,message):
+    response= {
+                'sessionAttributes': session_attributes,
+                'dialogAction': {
+                         'type': 'ElicitSlot',
+                         'intentName': intent_name,
+                         'slots': slots,
+                         'slotToElicit': slot_to_elicit,
+                         'message': message
+                         }
+                }
+    return response; 
+def lambda_handler(event, context):
+    # TODO implement
+    outputSessionAttributes = event.get('sessionAttributes') or {}
+    print("event",json.dumps(event))
+    print("responseobj count is  4")
+    slots = None
+    flag='true'
+    outputSessionAttributes['fallback'] = 'true'
+    outputSessionAttributes['RetryCounter'] = 1
+    response= elicit_slot (
+                    outputSessionAttributes,
+                    'medicineIntent', # current intent name
+                    slots,  # slot name                    slots,
+                    'medicines',            
+                     {
+                        'contentType':'SSML',
+                        'content': '<speak>  Sorry, i did not get that, can you please provide the first two letter of the medicine. for example say <emphasis level="strong">A R</emphasis> for Aromasin </speak>' # prompt the user to enter country name
+
+                    }
+                    )
+    print("response",response)    
+    return response  
+
+lexkambda
+import json
+import boto3;
+from boto3.dynamodb.conditions import Attr
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('tryfirstmedicines')
+print(table.creation_date_time)
+from datetime import datetime
+ddbClient = boto3.client("dynamodb");
+
+def dialog_close(message, session_attributes={}, fulfilled=False):
+    return {
+        "sessionAttributes": session_attributes,
+        "dialogAction": {
+            "type": "Close",
+            "fulfillmentState": "Fulfilled" if fulfilled else "Failed",
+            "message": message,
+        }
+    }
+
+
+def dialog_elicit_intent(message, session_attributes={}):
+    return {
+        "sessionAttributes": session_attributes,
+        "dialogAction": {
+            "type": "ElicitIntent",
+            "message": message
+        }
+    }
+
+
+def dialog_elicit_slot(intent_name, slot_to_elicit, message, slots, session_attributes={}):
+    return {
+        "sessionAttributes": session_attributes,
+        "dialogAction": {
+            "type": "ElicitSlot",
+            "intentName": intent_name,
+            "slots": slots,
+            "slotToElicit": slot_to_elicit,
+            "message": message
+        }
+    }
+
+
+def dialog_confirm_intent(intent_name, message, session_attributes={}):
+    return {
+        "sessionAttributes": session_attributes,
+        "dialogAction": {
+            "type": "ConfirmIntent",
+            "intentName": intent_name,
+            "message": message
+        }
+    }
+
+def elicit_slot(session_attributes, intent_name,slots,slot_to_elicit,message):
+    response= {
+                'sessionAttributes': session_attributes,
+                'dialogAction': {
+                         'type': 'ElicitSlot',
+                         'intentName': intent_name,
+                         'slots': slots,
+                         'slotToElicit': slot_to_elicit,
+                         'message': message
+                         }
+                }
+    return response;  
+    
+def dialog_delegate(slots, session_attributes={}):
+    return {
+        "sessionAttributes": session_attributes,
+        "dialogAction": {
+            "type": "Delegate",
+            "slots": slots
+        }
+    }
+
+
+def ssml(text):
+    return {
+        "contentType": "SSML",
+        "content": text
+    }
+
+
+def plainText(text):
+    return {
+        "contentType": "PlainText",
+        "content": text
+    }
+
+responseobj='';
+
+def lambda_handler(event, context):
+    print(json.dumps(event))
+    flag='false'
+    DBflag='false'
+    print("flag",flag)
+    print(json.dumps((event['inputTranscript']).replace(' ', '')).replace('.', ''))
+    #print(json.dumps(event['currentIntent']['slotDetails']['medicines']['resolutions']))
+    #array =event['currentIntent']['slotDetails']['medicines']['resolutions'];
+    #print("array",len(array))
+   # for x in range(len(array)):
+        
+    session_attributes =  event.get('sessionAttributes') or {}
+    current_intent = event.get("currentIntent", {})
+    slots = current_intent.get("slots")
+    current_intent_name = current_intent.get("name")
+    outputSessionAttributes=event.get('sessionAttributes')
+    print("session_attributes,slots",session_attributes,slots['medicines'])
+  # if slots['medicines'] is not None   
+    if slots['medicines'] is None:
+       # outputSessionAttributes['RetryLoop'] = 'true'
+        if 'RetryCounter' in session_attributes:
+            outputSessionAttributes['RetryCounter'] = int(outputSessionAttributes['RetryCounter']) + 1;
+        else:
+            outputSessionAttributes['RetryCounter'] = 1;
+            print("inside else outputSessionAttributes",outputSessionAttributes)
+            
+   # print("medicines is null",slots['medicines'])
+        if outputSessionAttributes['RetryCounter'] == 1 and 'fallback' in session_attributes:
+            slots = None
+            response= elicit_slot (
+                    outputSessionAttributes,
+                    event['currentIntent']['name'], # current intent name
+                    slots,  # slot name                    slots,
+                    'medicines',            
+                         {
+                            'contentType':'SSML',
+                            'content': '<speak>  Sorry, i did not get that, can you please provide the first two letter of the medicine. for example say <emphasis level="strong">A R</emphasis> for Aromasin </speak>' # prompt the user to enter country name
+    
+                        }
+                    )   
+            print("response RetryCounter is 2",response)    
+            return response
+        elif outputSessionAttributes['RetryCounter'] == 1 :
+            slots = None
+            response= elicit_slot (
+                    outputSessionAttributes,
+                    event['currentIntent']['name'], # current intent name
+                    slots,  # slot name                    slots,
+                    'medicines',            
+                      {
+                        'contentType':'SSML',
+                        'content': '<speak>  Sorry, i did not get that, can you please provide the first two letter of the medicine. for example say <emphasis level="strong">A R</emphasis> for Aromasin </speak>' # prompt the user to enter country name
+
+                     }
+                    )   
+            print("response RetryCounter is 2",response)    
+            return response       
+            
+        if outputSessionAttributes['RetryCounter'] == 2:
+            slots = None
+            response = elicit_slot (
+                        outputSessionAttributes,
+                        event['currentIntent']['name'], # current intent name
+                        slots,  # slot name                    slots,
+                        'medicines',            
+                          {
+                            'contentType':'SSML',
+                            'content': '<speak>  Sorry, i did not get that, can you please provide the first two digit  of the product by looking at your keypad for example <say-as interpret-as="digits">27</say-as> for  Aromasin from your phone </speak>' # prompt the user to enter country name
+    
+                         }
+                        )	    
+            print("response RetryCounter is 2",response)    
+            return response        
+        if  outputSessionAttributes['RetryCounter'] > 2:
+            slots = None
+            outputSessionAttributes['Transfer'] ='true'
+            response = dialog_close( {
+                        'contentType':'PlainText',
+                        'content': 'sorry, you have exeeded maximum attempts,we are transferring you to agent for further assistance', # prompt the user to enter country name
+                        },
+                        outputSessionAttributes,
+                        'fulfilled'
+                        )
+            print("response first",response)    
+            return response
+            
+    #response = ddbClient.query(
+     #   TableName= "tryfirstmedicines",
+      #  KeyConditionExpression= 'medicine = :medicine',
+      #  ExpressionAttributeValues= {
+     #       ':medicine':  {'S': 'Besponsa'}
+      #  }
+     #   )
+    inputTranscript=(((event['inputTranscript']).replace(' ', '')).replace('.', '')).lower()
+    print("inputTranscript",inputTranscript,len(inputTranscript))
+    if slots['medicines'] is not None:
+        slotFilled = (slots['medicines'][0:2]).lower()
+        print("slotFilled",slotFilled)
+   # if 'dbFlag' not in session_attributes:
+   # change the scan based on the slot value first two letter once we match the input
+    if 'dbFlag' not in session_attributes and slots['medicines'] is not None:
+        responseobj = table.scan(
+            FilterExpression=Attr('medicine').begins_with(slotFilled) 
+            )
+        outputSessionAttributes={"dbFlag":"true","items":json.dumps(responseobj),"responseobj": json.dumps(responseobj)}    
+        print("response",responseobj,outputSessionAttributes['items']) 
+    else:
+        responseobj=json.loads(session_attributes['responseobj'])
+        print("responseobj in else",responseobj)
+    if (responseobj['Count'] == 2 and len(inputTranscript) <= 2) and ( 'flagCounter1' not in session_attributes and slots['medicines'] is not None) :
+        print("responseobj count is  2",responseobj,responseobj['Items'])
+        slots = None 
+        flag='true'
+        outputSessionAttributes['flagCounter1'] = 'true'
+    #if 'retrycouner1' in session_attributes:
+    #    print("typecheck")
+   # else:
+    #    print("else typecheck")
+        #print("typecheck",type() is None)
+        #session_attributes['retrycounter1']=1;
+        #session_attributes = outputSessionAttributes
+        response= elicit_slot (
+                    outputSessionAttributes,
+                    event['currentIntent']['name'], # current intent name
+                    slots,  # slot name                    slots,
+                    'medicines',            
+                      {
+                        'contentType':'SSML',
+                        'content': 'we have multiple values for the letter you choose, to proceed please say ' + str(responseobj['Items'][0]['medicine']) + ' or, ' + str(responseobj['Items'][1]['medicine']) # prompt the user to enter country name
+                     }
+                    )
+        print("response first",response)    
+        return response   
+    if responseobj['Count'] == 3 and ('flagCounter2' not in session_attributes and slots['medicines'] is not None) :
+        print("responseobj count is  3",responseobj)
+        slots = None
+        flag='true'
+        outputSessionAttributes['flagCounter2'] = 'true'
+        response= elicit_slot (
+                    outputSessionAttributes,
+                    event['currentIntent']['name'], # current intent name
+                    slots,  # slot name                    slots,
+                    'medicines',            
+                      {
+                        'contentType':'PlainText',
+                        'content': 'we have multiple values for the letter you choose, to proceed please say ' + str(responseobj['Items'][0]['medicine']) + ' or ' + str(responseobj['Items'][1]['medicine'])  + ' or ' + str(responseobj['Items'][2]['medicine']), # prompt the user to enter country name
+
+                     }
+                    )
+        print("response",response)    
+        return response   
+        
+    if responseobj['Count'] == 4 and ('flagCounter3' not in session_attributes and slots['medicines'] is not None) :
+        print("responseobj count is  4",responseobj)
+        slots = None
+        flag='true'
+        outputSessionAttributes['flagCounter3'] = 'true'
+        response= elicit_slot (
+                    outputSessionAttributes,
+                    event['currentIntent']['name'], # current intent name
+                    slots,  # slot name                    slots,
+                    'medicines',            
+                      {
+                        'contentType':'PlainText',
+                        'content': 'we have multiple values for the letter you choose, to proceed please say ' + str(responseobj['Items'][0]['medicine']) + ' or ' + str(responseobj['Items'][1]['medicine'])  + ' or ' + str(responseobj['Items'][2]['medicine']) + ' or ' + str(responseobj['Items'][3]['medicine']), # prompt the user to enter country name
+
+                     }
+                    )
+        print("response",response)    
+        return response         
+   # if len(responseobj) == 2:
+      #  print("responseobj count is  2",responseobj)
+        #slots = None
+       # response= dialog_elicit_slot(
+       #             event['currentIntent']['name'], # current intent name
+       #             slots, # current intent slots
+       #             'medicines',  # slot name
+    #                'we have mutiple values for the digits you entered, to proceed please say ' + str(responseobj[0]) + ' or ' + str(responseobj[1] ) # prompt the user to enter country name
+     #       )
+      #  return response    
+            
+    # if current_intent.get("confirmationStatus") == "None":
+    #     return dialog_confirm_intent(current_intent_name, plainText("Are you sure want to book a room?"))
+    
+    ##put this on the top
+    if slots['medicines'] is None:
+        print("medicines is null",slots['medicines'])
+        slots = None
+        response= elicit_slot (
+                    session_attributes,
+                    event['currentIntent']['name'], # current intent name
+                    slots,  # slot name                    slots,
+                    'medicines',            
+                      {
+                        'contentType':'SSML',
+                        'content': '<speak>  Sorry, i did not get that, can you please provide the first two letter of the medicine. for example say <emphasis level="strong">A R</emphasis> for Aromasin </speak>' # prompt the user to enter country name
+
+                     }
+                    )
+        print("response first",response)    
+        return response  
+    response = dialog_delegate(slots, session_attributes);
+    response = dialog_delegate(slots, {
+                **session_attributes,
+                "responseobj": json.dumps(responseobj)
+            })
+    # input_transcript = event.get("inputTranscript", "").strip()
+    print(json.dumps(response))
+    
+    return response
